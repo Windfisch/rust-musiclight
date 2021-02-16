@@ -1,0 +1,12 @@
+[package]
+name = "musiclight"
+version = "0.1.0"
+authors = ["Thomas Kolb <cfr34k-git@tkolb.de>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+byteorder = "1.4"
+fftw      = { version = "0.6", default-features = false, features = ["system"] }
+mlua      = { version = "0.5", features = ["lua53"] }
