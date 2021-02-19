@@ -5,30 +5,30 @@ use std::collections::VecDeque;
 
 use byteorder::{NativeEndian, ReadBytesExt};
 
-use mlua::Lua;
-
 mod signal_processing;
 mod config;
+mod userscript;
 
 use crate::signal_processing::SignalProcessing;
+use crate::userscript::UserScript;
 
 fn main()
 {
 	let mut stdin = std::io::stdin();
 
-	// test the mlua crate
-	let lua_state = Lua::new();
+	// set up Lua environment
 
-	lua_state.globals().set("get_rust_value", lua_state.create_function(|_, ()| {
-		Ok(3)
-	}).unwrap()).unwrap();
+	println!("Loading user script...");
 
-	let user_script = std::fs::read_to_string("test.lua").unwrap();
-	lua_state.load(&user_script).exec().unwrap();
+	let script = UserScript::new("test.lua").unwrap();
 
-	let lua_func_test : mlua::Function = lua_state.globals().get("test").unwrap();
+	println!("Calling init()...");
 
-	println!("{}", lua_func_test.call::<_, u32>(123).unwrap());
+	script.init().unwrap();
+
+	// set up signal processing
+
+	println!("Initializing signal processing...");
 
 	let mut sigproc = SignalProcessing::new(config::BLOCK_LEN, config::SAMP_RATE).unwrap();
 
@@ -75,7 +75,10 @@ fn main()
 		let energy_treble = sigproc.get_energy_in_band(4000.0, config::SAMP_RATE/2.0);
 
 		// dump the output
-		println!("Bass: {:8.2} – Mid: {:8.2} – Treble: {:8.2}", energy_bass, energy_mid, energy_treble);
+		println!("Bass: {:11.2} – Mid: {:11.2} – Treble: {:11.2}", energy_bass, energy_mid, energy_treble);
+
+		// call the periodic function in the user script
+		script.periodic().unwrap();
 	}
 
 }
