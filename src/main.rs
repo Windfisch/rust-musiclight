@@ -1,6 +1,7 @@
 // vim: noet
 
 use std::process::exit;
+use std::collections::VecDeque;
 
 use byteorder::{NativeEndian, ReadBytesExt};
 
@@ -34,17 +35,24 @@ fn main()
 	println!("Done! Starting main loop…");
 
 	// array for samples directly read from stream
-	let mut samples = [0i16; config::BLOCK_LEN];
+	let mut samples: VecDeque<i16> = VecDeque::with_capacity(config::BLOCK_LEN);
 
 	// main loop
 	loop {
 
 		// read a block of samples and exit gracefully on EOF
-		for sample in samples.iter_mut() {
+		for _i in 0 .. config::SAMPLES_PER_UPDATE {
+			// avoid increasing the size of the deque
+			if samples.len() == config::BLOCK_LEN {
+				samples.pop_front();
+			}
+
+			// read a sample from the input
 			let res = stdin.read_i16::<NativeEndian>();
 
+			// if everything is ok, append it to the samples deque
 			match res {
-				Ok(s) => *sample = s,
+				Ok(s) => samples.push_back(s),
 				Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
 					println!("End of stream. Exiting.");
 					exit(0);
@@ -53,7 +61,13 @@ fn main()
 			}
 		}
 
-		sigproc.import_i16_mono(&samples).unwrap();
+		// only run calculations if the deque has been filled enough
+		if samples.len() < config::BLOCK_LEN {
+			continue;
+		}
+
+
+		sigproc.import_i16_mono_from_iter(samples.iter()).unwrap();
 		sigproc.update_fft().unwrap();
 
 		let energy_bass   = sigproc.get_energy_in_band(   0.0,  400.0);

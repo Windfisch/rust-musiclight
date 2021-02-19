@@ -1,5 +1,7 @@
 // vim: noet
 
+#[allow(dead_code)]
+
 use fftw::array::AlignedVec;
 use fftw::plan::*;
 use fftw::types::*;
@@ -82,6 +84,20 @@ impl SignalProcessing
 			.map(|&sample| (sample as f32) / 32768.0)
 			.zip(self.fft_input.iter_mut())
 			.for_each(|(c, t)| *t = c);
+
+		self.apply_window();
+
+		Ok(())
+	}
+
+	pub fn import_i16_mono_from_iter<'a>(&mut self, mut iter: impl std::iter::Iterator<Item=&'a i16>) -> std::result::Result<(), &str>
+	{
+		for fft_samp in self.fft_input.iter_mut() {
+			match iter.next() {
+				Some(sample) => *fft_samp = *sample as f32,
+				None         => return Err("Too few samples in input.")
+			}
+		}
 
 		self.apply_window();
 
