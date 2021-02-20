@@ -12,25 +12,29 @@ mod userscript;
 use crate::signal_processing::SignalProcessing;
 use crate::userscript::UserScript;
 
+use std::rc::Rc;
+use std::cell::RefCell;
+
 fn main()
 {
 	let mut stdin = std::io::stdin();
-
-	// set up Lua environment
-
-	println!("Loading user script...");
-
-	let script = UserScript::new("test.lua").unwrap();
-
-	println!("Calling init()...");
-
-	script.init().unwrap();
 
 	// set up signal processing
 
 	println!("Initializing signal processing...");
 
-	let mut sigproc = SignalProcessing::new(config::BLOCK_LEN, config::SAMP_RATE).unwrap();
+	let sigproc = Rc::new(RefCell::new(
+	                  SignalProcessing::new(config::BLOCK_LEN, config::SAMP_RATE).unwrap()));
+
+	// set up Lua environment
+
+	println!("Loading user script...");
+
+	let script = UserScript::new(sigproc.clone(), "test.lua").unwrap();
+
+	println!("Calling init()...");
+
+	script.init().unwrap();
 
 	println!("Done! Starting main loop…");
 
@@ -67,12 +71,15 @@ fn main()
 		}
 
 
-		sigproc.import_i16_mono_from_iter(samples.iter()).unwrap();
-		sigproc.update_fft().unwrap();
+		{
+			let mut s = sigproc.borrow_mut();
+			s.import_i16_mono_from_iter(samples.iter()).unwrap();
+			s.update_fft().unwrap();
+		}
 
-		let energy_bass   = sigproc.get_energy_in_band(   0.0,  400.0);
-		let energy_mid    = sigproc.get_energy_in_band( 400.0, 4000.0);
-		let energy_treble = sigproc.get_energy_in_band(4000.0, config::SAMP_RATE/2.0);
+		let energy_bass   = sigproc.borrow().get_energy_in_band(   0.0,  400.0);
+		let energy_mid    = sigproc.borrow().get_energy_in_band( 400.0, 4000.0);
+		let energy_treble = sigproc.borrow().get_energy_in_band(4000.0, config::SAMP_RATE/2.0);
 
 		// dump the output
 		println!("Bass: {:11.2} – Mid: {:11.2} – Treble: {:11.2}", energy_bass, energy_mid, energy_treble);

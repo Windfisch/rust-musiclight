@@ -21,10 +21,14 @@
 */
 
 use crate::config;
+use crate::signal_processing::SignalProcessing;
 
 use mlua::Lua;
 use mlua::FromLua;
 use mlua::Error;
+
+use std::rc::Rc;
+use std::cell::RefCell;
 
 pub struct UserScript
 {
@@ -33,11 +37,25 @@ pub struct UserScript
 
 impl UserScript
 {
-	pub fn new(user_script_path: &str) -> std::result::Result<UserScript, mlua::Error>
+	pub fn new(sigproc: Rc<RefCell<SignalProcessing>>, user_script_path: &str) -> std::result::Result<UserScript, mlua::Error>
 	{
 		let s = UserScript {
 			lua_state: Lua::new(),
 		};
+
+		// provide some configuration constants to Lua via a table
+		let config_table = s.lua_state.create_table()?;
+
+		config_table.set("sampling_rate", config::SAMP_RATE)?;
+		config_table.set("block_length", config::BLOCK_LEN)?;
+		config_table.set("samples_per_update", config::SAMPLES_PER_UPDATE)?;
+
+		s.lua_state.globals().set("CONFIG", config_table)?;
+
+		// register the signal processing reference as Lua user data
+		s.lua_state.globals().set("sigproc", SignalProcessingWrapper{
+			signal_processing: sigproc
+		})?;
 
 		// load the user script and execute it to make variables and functions available
 		let user_script = std::fs::read_to_string(user_script_path)?;
@@ -93,3 +111,23 @@ impl UserScript
 		Ok(())
 	}
 }
+
+
+/*
+ * Wrap a SignalProcessing instance and provide a Lua interface for some of its methods.
+ */
+struct SignalProcessingWrapper
+{
+	signal_processing: Rc<RefCell<SignalProcessing>>,
+}
+
+impl mlua::UserData for SignalProcessingWrapper
+{
+	fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M)
+	{
+		methods.add_method("get_energy_in_band", |_, this, (start_freq, end_freq): (f32, f32)| {
+			Ok(this.signal_processing.borrow().get_energy_in_band(start_freq, end_freq))
+		});
+	}
+}
+
