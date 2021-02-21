@@ -30,11 +30,23 @@ fn main()
 
 	println!("Loading user script...");
 
-	let script = UserScript::new(sigproc.clone(), "test.lua").unwrap();
+	let script = match UserScript::new(sigproc.clone(), "test.lua") {
+		Ok(script) => script,
+		Err(e) => {
+			println!("=== Lua Error ===\n{}\n====> Terminating.", e);
+			exit(1);
+		}
+	};
 
 	println!("Calling init()...");
 
-	script.init().unwrap();
+	match script.init() {
+		Ok(_) => (),
+		Err(e) => {
+			println!("=== Lua Error ===\n{}\n====> Terminating.", e);
+			exit(1);
+		}
+	};
 
 	println!("Done! Starting main loop…");
 
@@ -85,7 +97,14 @@ fn main()
 		println!("Bass: {:11.2} – Mid: {:11.2} – Treble: {:11.2}", energy_bass, energy_mid, energy_treble);
 
 		// call the periodic function in the user script
-		script.periodic().unwrap();
+		match script.periodic() {
+			Ok(_) => (),
+			Err(e) => {
+				println!("=== Lua Error ===\n{}\n====> Terminating.", e);
+				exit(1);
+			}
+		};
+
 	}
 
 }
