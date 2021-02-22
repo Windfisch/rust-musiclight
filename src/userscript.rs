@@ -33,6 +33,8 @@ use std::cell::RefCell;
 pub struct UserScript
 {
 	lua_state: Lua,
+
+	pub colorlists: [ [f32; config::NUM_LEDS_TOTAL]; 4],
 }
 
 impl UserScript
@@ -41,6 +43,7 @@ impl UserScript
 	{
 		let s = UserScript {
 			lua_state: Lua::new(),
+			colorlists: [ [0f32; config::NUM_LEDS_TOTAL]; 4],
 		};
 
 		// provide some configuration constants to Lua via a table
@@ -74,7 +77,7 @@ impl UserScript
 		Ok(())
 	}
 
-	pub fn periodic(&self) -> std::result::Result<(), mlua::Error>
+	pub fn periodic(&mut self) -> std::result::Result<(), mlua::Error>
 	{
 		// find the init functions
 		let lua_periodic_func: mlua::Function = self.lua_state.globals().get("periodic")?;
@@ -89,8 +92,7 @@ impl UserScript
 		}
 
 		// convert the Lua Tables to normal vectors
-		let mut colorlists = Vec::<Vec<f32>>::new();
-
+		let mut i = 0;
 		for rval in rvals {
 			let table = mlua::Table::from_lua(rval, &self.lua_state)?;
 
@@ -103,10 +105,12 @@ impl UserScript
 				return Err(Error::RuntimeError("Number of color values returned from 'periodic' must match number of LEDs given in 'init'.".to_string()));
 			}
 
-			colorlists.push(v);
-		}
+			for j in 0 .. self.colorlists[i].len() {
+				self.colorlists[i][j] = v[j];
+			}
 
-		println!("{:?}", colorlists[0][0]);
+			i += 1;
+		}
 
 		Ok(())
 	}

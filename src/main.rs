@@ -8,9 +8,11 @@ use byteorder::{NativeEndian, ReadBytesExt};
 mod signal_processing;
 mod config;
 mod userscript;
+mod udpproto;
 
 use crate::signal_processing::SignalProcessing;
 use crate::userscript::UserScript;
+use crate::udpproto::UdpProto;
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -18,6 +20,15 @@ use std::cell::RefCell;
 fn main()
 {
 	let mut stdin = std::io::stdin();
+
+	// set up the UDP protocol
+	let mut udpproto = match UdpProto::new(config::UDP_SERVER_ADDR) {
+		Ok(u) => u,
+		Err(e) => {
+			println!("Error during UDP client setup:\n{}", e);
+			exit(1);
+		}
+	};
 
 	// set up signal processing
 
@@ -30,7 +41,7 @@ fn main()
 
 	println!("Loading user script...");
 
-	let script = match UserScript::new(sigproc.clone(), "test.lua") {
+	let mut script = match UserScript::new(sigproc.clone(), "test.lua") {
 		Ok(script) => script,
 		Err(e) => {
 			println!("=== Lua Error ===\n{}\n====> Terminating.", e);
@@ -98,6 +109,18 @@ fn main()
 			}
 		};
 
+		// FIXME: only send with 60 FPS!
+
+		for i in 0..script.colorlists[0].len() {
+			udpproto.set_color((i / config::NUM_LEDS_PER_STRIP) as u8,
+							   (i % config::NUM_LEDS_PER_STRIP) as u8,
+							   (script.colorlists[0][i] * 255.0) as u8,
+							   (script.colorlists[1][i] * 255.0) as u8,
+							   (script.colorlists[2][i] * 255.0) as u8,
+							   (script.colorlists[3][i] * 255.0) as u8).unwrap();
+		}
+
+		udpproto.commit().unwrap();
 	}
 
 }
