@@ -17,6 +17,9 @@ use crate::udpproto::UdpProto;
 use std::rc::Rc;
 use std::cell::RefCell;
 
+use std::thread::sleep;
+use std::time::{Duration, Instant};
+
 fn main()
 {
 	let mut stdin = std::io::stdin();
@@ -41,7 +44,7 @@ fn main()
 
 	println!("Loading user script...");
 
-	let mut script = match UserScript::new(sigproc.clone(), "test.lua") {
+	let mut script = match UserScript::new(sigproc.clone(), "particles.lua") {
 		Ok(script) => script,
 		Err(e) => {
 			println!("=== Lua Error ===\n{}\n====> Terminating.", e);
@@ -60,6 +63,14 @@ fn main()
 	};
 
 	println!("Done! Starting main loop…");
+
+	// Timing setup
+
+	let block_period = Duration::from_nanos((0.95 * (config::SAMPLES_PER_UPDATE as f32) * 1e9 / config::SAMP_RATE) as u64);
+	let send_period = Duration::from_nanos(1000000000 / 60);
+
+	let mut next_block_instant = Instant::now() + block_period;
+	let mut next_send_instant = Instant::now() + send_period;
 
 	// array for samples directly read from stream
 	let mut samples: VecDeque<i16> = VecDeque::with_capacity(config::BLOCK_LEN);
@@ -111,16 +122,27 @@ fn main()
 
 		// FIXME: only send with 60 FPS!
 
-		for i in 0..script.colorlists[0].len() {
-			udpproto.set_color((i / config::NUM_LEDS_PER_STRIP) as u8,
-							   (i % config::NUM_LEDS_PER_STRIP) as u8,
-							   (script.colorlists[0][i] * 255.0) as u8,
-							   (script.colorlists[1][i] * 255.0) as u8,
-							   (script.colorlists[2][i] * 255.0) as u8,
-							   (script.colorlists[3][i] * 255.0) as u8).unwrap();
+		if Instant::now() > next_send_instant {
+			for i in 0..script.colorlists[0].len() {
+				udpproto.set_color((i / config::NUM_LEDS_PER_STRIP) as u8,
+								   (i % config::NUM_LEDS_PER_STRIP) as u8,
+								   (script.colorlists[0][i] * 255.0) as u8,
+								   (script.colorlists[1][i] * 255.0) as u8,
+								   (script.colorlists[2][i] * 255.0) as u8,
+								   (script.colorlists[3][i] * 255.0) as u8).unwrap();
+			}
+
+			udpproto.commit().unwrap();
+
+			next_send_instant += send_period;
 		}
 
-		udpproto.commit().unwrap();
+		let now = Instant::now();
+		if now < next_block_instant {
+			sleep(next_block_instant - now);
+		}
+
+		next_block_instant = Instant::now() + block_period;
 	}
 
 }
