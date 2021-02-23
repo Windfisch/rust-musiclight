@@ -43,9 +43,9 @@ impl UdpProto
 			return Ok( () );
 		}
 
-		self.packet_offset = 0;
-
 		self.socket.send(&self.packet[0..self.packet_offset])?;
+
+		self.packet_offset = 0;
 
 		Ok( () )
 	}
@@ -58,7 +58,7 @@ impl UdpProto
 		self.packet[self.packet_offset + 2] = led;
 
 		for i in 0 .. data.len() {
-			self.packet[self.packet_offset + i] = data[i];
+			self.packet[self.packet_offset + i + 3] = data[i];
 		}
 
 		self.packet_offset += 7;
