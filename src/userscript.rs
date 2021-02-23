@@ -60,6 +60,9 @@ impl UserScript
 			signal_processing: sigproc
 		})?;
 
+		// register the LED interface
+		s.lua_state.globals().set("leds", LuaLED{})?;
+
 		// load the user script and execute it to make variables and functions available
 		let user_script = std::fs::read_to_string(user_script_path)?;
 		s.lua_state.load(&user_script).exec()?;
@@ -129,8 +132,26 @@ impl mlua::UserData for SignalProcessingWrapper
 {
 	fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M)
 	{
-		methods.add_method("get_energy_in_band", |_, this, (start_freq, end_freq): (f32, f32)| {
+		methods.add_method("get_energy_in_band", |_lua, this, (start_freq, end_freq): (f32, f32)| {
 			Ok(this.signal_processing.borrow().get_energy_in_band(start_freq, end_freq))
+		});
+	}
+}
+
+
+/*
+ * Lua interface for functions related to the LED setup
+ */
+struct LuaLED
+{
+}
+
+impl mlua::UserData for LuaLED
+{
+	fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M)
+	{
+		methods.add_method("idx", |_lua, _this, (strip, led): (usize, usize)| {
+			Ok( (strip - 1) * config::NUM_LEDS_PER_STRIP + (led - 1) + 1 )
 		});
 	}
 }
