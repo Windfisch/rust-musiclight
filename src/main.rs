@@ -9,10 +9,12 @@ mod signal_processing;
 mod config;
 mod userscript;
 mod udpproto;
+mod animation;
 
 use crate::signal_processing::SignalProcessing;
-use crate::userscript::UserScript;
+//use crate::userscript::UserScript;
 use crate::udpproto::UdpProto;
+use crate::animation::Animation;
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -40,6 +42,7 @@ fn main()
 	let sigproc = Rc::new(RefCell::new(
 	                  SignalProcessing::new(config::BLOCK_LEN, config::SAMP_RATE).unwrap()));
 
+	/*
 	// set up Lua environment
 
 	println!("Loading user script...");
@@ -61,6 +64,15 @@ fn main()
 			exit(1);
 		}
 	};
+	*/
+
+	println!("Contructing Animation...");
+
+	let mut anim: animation::particles::Particles = animation::Animation::new(sigproc.clone());
+
+	println!("Calling Animation::init()...");
+
+	anim.init().unwrap();
 
 	println!("Done! Starting main loop…");
 
@@ -112,24 +124,27 @@ fn main()
 		}
 
 		// call the periodic function in the user script
-		match script.periodic() {
+		match anim.periodic() {
 			Ok(_) => (),
 			Err(e) => {
-				println!("=== Lua Error ===\n{}\n====> Terminating.", e);
+				println!("=== Animation Error ===\n{}\n====> Terminating.", e);
 				exit(1);
 			}
 		};
 
-		// FIXME: only send with 60 FPS!
-
 		if Instant::now() > next_send_instant {
-			for i in 0..script.colorlists[0].len() {
-				udpproto.set_color((i / config::NUM_LEDS_PER_STRIP) as u8,
-								   (i % config::NUM_LEDS_PER_STRIP) as u8,
-								   (script.colorlists[0][i] * 255.0) as u8,
-								   (script.colorlists[1][i] * 255.0) as u8,
-								   (script.colorlists[2][i] * 255.0) as u8,
-								   (script.colorlists[3][i] * 255.0) as u8).unwrap();
+			let colorlists = anim.get_colorlist();
+
+			for i in 0..config::NUM_LEDS_TOTAL {
+				let strip = i / config::NUM_LEDS_PER_STRIP;
+				let led   = i % config::NUM_LEDS_PER_STRIP;
+
+				udpproto.set_color(strip as u8,
+								   led as u8,
+								   (colorlists[strip][led].r * 255.0) as u8,
+								   (colorlists[strip][led].g * 255.0) as u8,
+								   (colorlists[strip][led].b * 255.0) as u8,
+								   (colorlists[strip][led].w * 255.0) as u8).unwrap();
 			}
 
 			udpproto.commit().unwrap();
