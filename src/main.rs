@@ -7,7 +7,7 @@ use byteorder::{NativeEndian, ReadBytesExt};
 
 mod signal_processing;
 mod config;
-mod userscript;
+//mod userscript;
 mod udpproto;
 mod animation;
 
