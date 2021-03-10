@@ -125,12 +125,13 @@ pub mod particles
 
 	use rand::Rng;
 
-	const COOLDOWN_FACTOR    : f32 = 0.99995;
-	const RGB_EXPONENT       : f32 = 1.8;
-	const W_EXPONENT         : f32 = 2.2;
-	const FADE_FACTOR        : f32 = 0.98;
-	const AVG_LEDS_ACTIVATED : f32 = 0.05;
-	const WHITE_EXTRA_SCALE  : f32 = 0.5;
+	const COOLDOWN_FACTOR     : f32 = 0.99995;
+	const RGB_EXPONENT        : f32 = 1.8;
+	const W_EXPONENT          : f32 = 2.2;
+	const FADE_FACTOR         : f32 = 0.98;
+	const AVG_LEDS_ACTIVATED  : f32 = 0.02;
+	const WHITE_EXTRA_SCALE   : f32 = 0.5;
+	const CONDENSATION_FACTOR : f32 = 5.0;
 
 	pub struct Particles
 	{
@@ -218,7 +219,7 @@ pub mod particles
 				let rem_energy_ref = remaining_energy.ref_by_index_mut(coloridx).unwrap();
 
 				while *rem_energy_ref > 0.0 {
-					let mut rnd_energy = rng.gen::<f32>() * (*new_energy_ref) * 5.0;
+					let mut rnd_energy = rng.gen::<f32>() * (*new_energy_ref) * CONDENSATION_FACTOR;
 
 					let rnd_strip = rng.gen_range(0..config::NUM_STRIPS);
 					let rnd_led   = rng.gen_range(0..config::NUM_LEDS_PER_STRIP);
