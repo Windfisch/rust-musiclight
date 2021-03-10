@@ -139,15 +139,32 @@ fn main()
 				let strip = i / config::NUM_LEDS_PER_STRIP;
 				let led   = i % config::NUM_LEDS_PER_STRIP;
 
-				udpproto.set_color(strip as u8,
-								   led as u8,
-								   (colorlists[strip][led].r * 255.0) as u8,
-								   (colorlists[strip][led].g * 255.0) as u8,
-								   (colorlists[strip][led].b * 255.0) as u8,
-								   (colorlists[strip][led].w * 255.0) as u8).unwrap();
+				let r = udpproto.set_color(strip as u8,
+				                           led as u8,
+				                           (colorlists[strip][led].r * 255.0) as u8,
+				                           (colorlists[strip][led].g * 255.0) as u8,
+				                           (colorlists[strip][led].b * 255.0) as u8,
+				                           (colorlists[strip][led].w * 255.0) as u8);
+
+				match r {
+					Ok(_) => (),
+					Err(e) if e.kind() == std::io::ErrorKind::ConnectionRefused => {
+						// try again in one second
+						next_send_instant += Duration::from_secs(1);
+						break;
+					}
+					Err(e) => panic!(e),
+				}
 			}
 
-			udpproto.commit().unwrap();
+			match udpproto.commit() {
+					Ok(_) => (),
+					Err(e) if e.kind() == std::io::ErrorKind::ConnectionRefused => {
+						// try again in one second
+						next_send_instant += Duration::from_secs(1);
+					}
+					Err(e) => panic!(e),
+			}
 
 			next_send_instant += send_period;
 		}
