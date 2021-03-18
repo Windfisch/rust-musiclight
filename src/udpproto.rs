@@ -63,7 +63,7 @@ impl UdpProto
 
 		self.packet_offset += 7;
 
-		if self.packet_offset >= MAX_PACKET_LEN {
+		if self.packet_offset >= MAX_PACKET_LEN-7 {
 			self.send_packet()?;
 		}
 
