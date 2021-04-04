@@ -81,6 +81,8 @@ fn main()
 	let block_period = Duration::from_nanos((0.95 * (config::SAMPLES_PER_UPDATE as f32) * 1e9 / config::SAMP_RATE) as u64);
 	let send_period = Duration::from_nanos(1000000000 / 60);
 
+	let max_lag = Duration::from_millis(1000);
+
 	let mut next_block_instant = Instant::now() + block_period;
 	let mut next_send_instant = Instant::now() + send_period;
 
@@ -166,7 +168,13 @@ fn main()
 					Err(e) => panic!(e),
 			}
 
-			next_send_instant += send_period;
+			let now = Instant::now();
+			if now - next_send_instant > max_lag {
+				println!("Warning! Lag exceeds {:?}. Resetting sender timing.", max_lag);
+				next_send_instant = now + send_period;
+			} else {
+				next_send_instant += send_period;
+			}
 		}
 
 		let now = Instant::now();
