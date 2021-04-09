@@ -68,7 +68,9 @@ fn main()
 
 	println!("Contructing Animation...");
 
-	let mut anim: animation::particles::Particles = animation::Animation::new(sigproc.clone());
+	// TODO: let the user select via the command line
+	//let mut anim: animation::particles::Particles = animation::Animation::new(sigproc.clone());
+	let mut anim: animation::sparkles::Sparkles = animation::Animation::new(sigproc.clone());
 
 	println!("Calling Animation::init()...");
 
@@ -79,7 +81,7 @@ fn main()
 	// Timing setup
 
 	let block_period = Duration::from_nanos((0.95 * (config::SAMPLES_PER_UPDATE as f32) * 1e9 / config::SAMP_RATE) as u64);
-	let send_period = Duration::from_nanos(1000000000 / 60);
+	let send_period = Duration::from_nanos((1000000000.0 / config::FPS_LEDS) as u64);
 
 	let max_lag = 5*send_period;
 

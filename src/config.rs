@@ -13,3 +13,6 @@ pub const NUM_LEDS_TOTAL: usize = NUM_STRIPS * NUM_LEDS_PER_STRIP;
 
 // network configuration
 pub const UDP_SERVER_ADDR: &str = "192.168.23.118:2703";
+
+pub const FPS_ANIMATION: f32 = SAMP_RATE / SAMPLES_PER_UPDATE as f32;
+pub const FPS_LEDS: f32 = 60.0;
