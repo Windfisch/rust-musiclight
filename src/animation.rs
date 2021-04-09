@@ -16,14 +16,12 @@ type Result<T> = std::result::Result<T, AnimationError>;
 #[derive(Debug)]
 pub enum AnimationError
 {
-	LuaError(mlua::Error),
 	ErrorMessage(std::string::String),
 }
 
 impl fmt::Display for AnimationError {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match self {
-			AnimationError::LuaError(e) => f.write_fmt(format_args!("=== Lua Error ===\n{}\n=================", e))?,
 			AnimationError::ErrorMessage(s) => f.write_fmt(format_args!("Message({})", s))?,
 		};
 
@@ -34,7 +32,6 @@ impl fmt::Display for AnimationError {
 impl StdError for AnimationError {
 	fn description(&self) -> &str {
 		match *self {
-			AnimationError::LuaError(_) => "Lua Error",
 			AnimationError::ErrorMessage(_) => "Error Message",
 		}
 	}

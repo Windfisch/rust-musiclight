@@ -7,12 +7,10 @@ use byteorder::{NativeEndian, ReadBytesExt};
 
 mod signal_processing;
 mod config;
-//mod userscript;
 mod udpproto;
 mod animation;
 
 use crate::signal_processing::SignalProcessing;
-//use crate::userscript::UserScript;
 use crate::udpproto::UdpProto;
 use crate::animation::Animation;
 
@@ -41,30 +39,6 @@ fn main()
 
 	let sigproc = Rc::new(RefCell::new(
 	                  SignalProcessing::new(config::BLOCK_LEN, config::SAMP_RATE).unwrap()));
-
-	/*
-	// set up Lua environment
-
-	println!("Loading user script...");
-
-	let mut script = match UserScript::new(sigproc.clone(), "particles.lua") {
-		Ok(script) => script,
-		Err(e) => {
-			println!("=== Lua Error ===\n{}\n====> Terminating.", e);
-			exit(1);
-		}
-	};
-
-	println!("Calling init()...");
-
-	match script.init() {
-		Ok(_) => (),
-		Err(e) => {
-			println!("=== Lua Error ===\n{}\n====> Terminating.", e);
-			exit(1);
-		}
-	};
-	*/
 
 	println!("Contructing Animation...");
 
