@@ -65,6 +65,9 @@ fn main()
 	// array for samples directly read from stream
 	let mut samples: VecDeque<i16> = VecDeque::with_capacity(config::BLOCK_LEN);
 
+	// counts silent (zero-valued) samples
+	let mut silent_samples: usize = 0;
+
 	// main loop
 	loop {
 
@@ -98,6 +101,19 @@ fn main()
 		{
 			let mut s = sigproc.borrow_mut();
 			s.import_i16_mono_from_iter(samples.iter()).unwrap();
+
+			if s.is_silent() {
+				silent_samples += config::BLOCK_LEN;
+
+				if silent_samples >= config::STANDBY_MAX_SILENT_SAMPLES {
+					// too many silent samples in a row: stop any signal processing until something
+					// else occurs at the input again
+					continue;
+				}
+			} else {
+				silent_samples = 0;
+			}
+
 			s.update_fft().unwrap();
 		}
 

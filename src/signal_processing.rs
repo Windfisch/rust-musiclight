@@ -104,6 +104,11 @@ impl SignalProcessing
 		Ok(())
 	}
 
+	pub fn is_silent(&self) -> bool
+	{
+		return self.fft_input.iter().sum::<f32>() == 0.0;
+	}
+
 	pub fn update_fft(&mut self) -> fftw::error::Result<()>
 	{
 		self.fft_plan.r2c(&mut self.fft_input, &mut self.fft_output)?;
