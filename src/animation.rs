@@ -138,7 +138,7 @@ pub mod particles
 
 	use rand::Rng;
 
-	const COOLDOWN_FACTOR     : f32 = 0.99995;
+	const COOLDOWN_FACTOR     : f32 = 0.99980;
 	const RGB_EXPONENT        : f32 = 1.8;
 	const W_EXPONENT          : f32 = 2.2;
 	const FADE_FACTOR         : f32 = 0.98;
