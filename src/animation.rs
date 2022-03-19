@@ -13,6 +13,7 @@ type Result<T> = std::result::Result<T, AnimationError>;
 
 pub mod particles;
 pub mod sparkles;
+pub mod racers;
 
 /////////// Error Type and Implementation ////////////
 

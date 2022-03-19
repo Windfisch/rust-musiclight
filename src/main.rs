@@ -44,7 +44,8 @@ fn main()
 
 	// TODO: let the user select via the command line
 	//let mut anim: animation::particles::Particles = animation::Animation::new(sigproc.clone());
-	let mut anim: animation::sparkles::Sparkles = animation::Animation::new(sigproc.clone());
+	//let mut anim: animation::sparkles::Sparkles = animation::Animation::new(sigproc.clone());
+	let mut anim: animation::racers::Racers = animation::Animation::new(sigproc.clone());
 
 	println!("Calling Animation::init()...");
 
