@@ -268,46 +268,53 @@ impl Animation for Racers
 			b: sigproc.get_energy_in_band( 4000.0, 12000.0),
 			w: sigproc.get_energy_in_band(12000.0, 22000.0)};
 
+		for i in 0..4 {
+			let f = self.filtered_energy.ref_by_index_mut(i).unwrap();
+			let n = cur_energy.ref_by_index(i).unwrap();
+
+			*f = (1.0 - BRIGHTNESS_FILTER_ALPHA) * (*f) + BRIGHTNESS_FILTER_ALPHA * (*n);
+		}
+
 		// track the maximum energy with cooldown
 		self.max_energy.r *= COOLDOWN_FACTOR;
-		if cur_energy.r > self.max_energy.r {
-			self.max_energy.r = cur_energy.r;
+		if self.filtered_energy.r > self.max_energy.r {
+			self.max_energy.r = self.filtered_energy.r;
 		}
 
 		self.max_energy.g *= COOLDOWN_FACTOR;
-		if cur_energy.g > self.max_energy.g {
-			self.max_energy.g = cur_energy.g;
+		if self.filtered_energy.g > self.max_energy.g {
+			self.max_energy.g = self.filtered_energy.g;
 		}
 
 		self.max_energy.b *= COOLDOWN_FACTOR;
-		if cur_energy.b > self.max_energy.b {
-			self.max_energy.b = cur_energy.b;
+		if self.filtered_energy.b > self.max_energy.b {
+			self.max_energy.b = self.filtered_energy.b;
 		}
 
 		self.max_energy.w *= COOLDOWN_FACTOR;
-		if cur_energy.w > self.max_energy.w {
-			self.max_energy.w = cur_energy.w;
+		if self.filtered_energy.w > self.max_energy.w {
+			self.max_energy.w = self.filtered_energy.w;
 		}
 
 		// track the minimum energy with warmup
 		self.min_energy.r += (1.0 - COOLDOWN_FACTOR) * (self.max_energy.r - self.min_energy.r);
-		if cur_energy.r < self.min_energy.r {
-			self.min_energy.r = cur_energy.r;
+		if self.filtered_energy.r < self.min_energy.r {
+			self.min_energy.r = self.filtered_energy.r;
 		}
 
 		self.min_energy.g += (1.0 - COOLDOWN_FACTOR) * (self.max_energy.g - self.min_energy.g);
-		if cur_energy.g < self.min_energy.g {
-			self.min_energy.g = cur_energy.g;
+		if self.filtered_energy.g < self.min_energy.g {
+			self.min_energy.g = self.filtered_energy.g;
 		}
 
 		self.min_energy.b += (1.0 - COOLDOWN_FACTOR) * (self.max_energy.b - self.min_energy.b);
-		if cur_energy.b < self.min_energy.b {
-			self.min_energy.b = cur_energy.b;
+		if self.filtered_energy.b < self.min_energy.b {
+			self.min_energy.b = self.filtered_energy.b;
 		}
 
 		self.min_energy.w += (1.0 - COOLDOWN_FACTOR) * (self.max_energy.w - self.min_energy.w);
-		if cur_energy.w < self.min_energy.w {
-			self.min_energy.w = cur_energy.w;
+		if self.filtered_energy.w < self.min_energy.w {
+			self.min_energy.w = self.filtered_energy.w;
 		}
 
 		// set all LEDs initially to black
@@ -320,21 +327,14 @@ impl Animation for Racers
 
 		// rescaling and normalization of the energies
 		let scaled_energy = Color{
-			r: ((cur_energy.r - self.min_energy.r) / (self.max_energy.r - self.min_energy.r)).powf(RGB_EXPONENT),
-			g: ((cur_energy.g - self.min_energy.g) / (self.max_energy.g - self.min_energy.g)).powf(RGB_EXPONENT),
-			b: ((cur_energy.b - self.min_energy.b) / (self.max_energy.b - self.min_energy.b)).powf(RGB_EXPONENT),
-			w: ((cur_energy.w - self.min_energy.w) / (self.max_energy.w - self.min_energy.w)).powf(W_EXPONENT),
+			r: ((self.filtered_energy.r - self.min_energy.r) / (self.max_energy.r - self.min_energy.r)).powf(RGB_EXPONENT),
+			g: ((self.filtered_energy.g - self.min_energy.g) / (self.max_energy.g - self.min_energy.g)).powf(RGB_EXPONENT),
+			b: ((self.filtered_energy.b - self.min_energy.b) / (self.max_energy.b - self.min_energy.b)).powf(RGB_EXPONENT),
+			w: ((self.filtered_energy.w - self.min_energy.w) / (self.max_energy.w - self.min_energy.w)).powf(W_EXPONENT) * W_SCALE,
 		};
 
-		for i in 0..4 {
-			let f = self.filtered_energy.ref_by_index_mut(i).unwrap();
-			let n = scaled_energy.ref_by_index(i).unwrap();
-
-			*f = (1.0 - BRIGHTNESS_FILTER_ALPHA) * (*f) + BRIGHTNESS_FILTER_ALPHA * (*n);
-		}
-
 		// update all racers
-		let f = &self.filtered_energy;
+		let f = &scaled_energy;
 		self.racers_r.iter_mut().for_each(|x| x.update(f.r, f.w));
 		self.racers_g.iter_mut().for_each(|x| x.update(f.g, f.w));
 		self.racers_b.iter_mut().for_each(|x| x.update(f.b, f.w));
@@ -363,10 +363,10 @@ impl Animation for Racers
 		self.frame_count += 1;
 		if self.frame_count % 100 == 0 {
 			println!("---");
-			print!("Red   "); dbg_bar(self.min_energy.r, cur_energy.r, self.max_energy.r); println!("{:11.2}", self.max_energy.r);
-			print!("Green "); dbg_bar(self.min_energy.g, cur_energy.g, self.max_energy.g); println!("{:11.2}", self.max_energy.g);
-			print!("Blue  "); dbg_bar(self.min_energy.b, cur_energy.b, self.max_energy.b); println!("{:11.2}", self.max_energy.b);
-			print!("White "); dbg_bar(self.min_energy.w, cur_energy.w, self.max_energy.w); println!("{:11.2}", self.max_energy.w);
+			print!("Red   "); dbg_bar(self.min_energy.r, self.filtered_energy.r, self.max_energy.r); println!("{:11.2}", self.max_energy.r);
+			print!("Green "); dbg_bar(self.min_energy.g, self.filtered_energy.g, self.max_energy.g); println!("{:11.2}", self.max_energy.g);
+			print!("Blue  "); dbg_bar(self.min_energy.b, self.filtered_energy.b, self.max_energy.b); println!("{:11.2}", self.max_energy.b);
+			print!("White "); dbg_bar(self.min_energy.w, self.filtered_energy.w, self.max_energy.w); println!("{:11.2}", self.max_energy.w);
 		}
 
 		Ok(())
