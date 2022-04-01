@@ -36,6 +36,25 @@ const RACER_MAX_BRIGHTNESS_B   : f32 = 1.00;
 
 const SPEED_SCALE_RANGE        : f32 = 0.10;
 
+fn dbg_bar(min: f32, current: f32, max: f32)
+{
+	const LEN: usize = 60;
+	let mut bar = ['.'; LEN];
+
+	let minpos = ((LEN as f32) * min / max) as usize;
+	let curpos = ((LEN as f32) * current / max) as usize;
+
+	for idx in minpos..LEN {
+		bar[idx] = '-';
+	}
+
+	if curpos < LEN {
+		bar[curpos] = '#';
+	}
+
+	print!("{}", bar.iter().collect::<String>());
+}
+
 /*
  * A racer is a point of light that can move along the LED strips.
  */
@@ -140,6 +159,7 @@ impl Racer
 pub struct Racers
 {
 	max_energy      : Color,
+	min_energy      : Color,
 	filtered_energy : Color,
 
 	racers_r : Vec<Racer>,
@@ -147,6 +167,8 @@ pub struct Racers
 	racers_b : Vec<Racer>,
 
 	colorlists : [ [Color; config::NUM_LEDS_PER_STRIP]; config::NUM_STRIPS],
+
+	frame_count: usize,
 
 	sigproc: Rc<RefCell<SignalProcessing>>,
 }
@@ -157,12 +179,14 @@ impl Animation for Racers
 	{
 		Racers {
 			max_energy: Color{r: 1.0, g: 1.0, b: 1.0, w: 1.0},
+			min_energy: Color{r: 0.0, g: 0.0, b: 0.0, w: 0.0},
 			filtered_energy: Color{r: 0.0, g: 0.0, b: 0.0, w: 0.0},
 			racers_r: Vec::with_capacity(NUM_RACERS_R),
 			racers_g: Vec::with_capacity(NUM_RACERS_G),
 			racers_b: Vec::with_capacity(NUM_RACERS_B),
 			colorlists: [ [Color{r: 0.0, g: 0.0, b: 0.0, w: 0.0}; config::NUM_LEDS_PER_STRIP]; config::NUM_STRIPS],
 			sigproc: sigproc,
+			frame_count: 0,
 		}
 	}
 
@@ -244,6 +268,27 @@ impl Animation for Racers
 			self.max_energy.w = cur_energy.w;
 		}
 
+		// track the minimum energy with warmup
+		self.min_energy.r += (1.0 - COOLDOWN_FACTOR) * (self.max_energy.r - self.min_energy.r);
+		if cur_energy.r < self.min_energy.r {
+			self.min_energy.r = cur_energy.r;
+		}
+
+		self.min_energy.g += (1.0 - COOLDOWN_FACTOR) * (self.max_energy.g - self.min_energy.g);
+		if cur_energy.g < self.min_energy.g {
+			self.min_energy.g = cur_energy.g;
+		}
+
+		self.min_energy.b += (1.0 - COOLDOWN_FACTOR) * (self.max_energy.b - self.min_energy.b);
+		if cur_energy.b < self.min_energy.b {
+			self.min_energy.b = cur_energy.b;
+		}
+
+		self.min_energy.w += (1.0 - COOLDOWN_FACTOR) * (self.max_energy.w - self.min_energy.w);
+		if cur_energy.w < self.min_energy.w {
+			self.min_energy.w = cur_energy.w;
+		}
+
 		// set all LEDs initially to black
 		for strip in 0..config::NUM_STRIPS {
 			for led in 0..config::NUM_LEDS_PER_STRIP {
@@ -254,10 +299,10 @@ impl Animation for Racers
 
 		// rescaling and normalization of the energies
 		let scaled_energy = Color{
-			r: (cur_energy.r / self.max_energy.r).powf(RGB_EXPONENT),
-			g: (cur_energy.g / self.max_energy.g).powf(RGB_EXPONENT),
-			b: (cur_energy.b / self.max_energy.b).powf(RGB_EXPONENT),
-			w: (cur_energy.w / self.max_energy.w).powf(W_EXPONENT) * W_SCALE,
+			r: ((cur_energy.r - self.min_energy.r) / (self.max_energy.r - self.min_energy.r)).powf(RGB_EXPONENT),
+			g: ((cur_energy.g - self.min_energy.g) / (self.max_energy.g - self.min_energy.g)).powf(RGB_EXPONENT),
+			b: ((cur_energy.b - self.min_energy.b) / (self.max_energy.b - self.min_energy.b)).powf(RGB_EXPONENT),
+			w: ((cur_energy.w - self.min_energy.w) / (self.max_energy.w - self.min_energy.w)).powf(W_EXPONENT),
 		};
 
 		for i in 0..4 {
@@ -291,6 +336,16 @@ impl Animation for Racers
 			for led in 0..config::NUM_LEDS_PER_STRIP {
 				self.colorlists[strip][led].limit();
 			}
+		}
+
+		// debug stuff
+		self.frame_count += 1;
+		if self.frame_count % 100 == 0 {
+			println!("---");
+			print!("Red   "); dbg_bar(self.min_energy.r, cur_energy.r, self.max_energy.r); println!("{:11.2}", self.max_energy.r);
+			print!("Green "); dbg_bar(self.min_energy.g, cur_energy.g, self.max_energy.g); println!("{:11.2}", self.max_energy.g);
+			print!("Blue  "); dbg_bar(self.min_energy.b, cur_energy.b, self.max_energy.b); println!("{:11.2}", self.max_energy.b);
+			print!("White "); dbg_bar(self.min_energy.w, cur_energy.w, self.max_energy.w); println!("{:11.2}", self.max_energy.w);
 		}
 
 		Ok(())
