@@ -77,14 +77,14 @@ struct Racer
 
 impl Racer
 {
-	pub fn new(min_speed: f32, max_speed: f32, min_brightness: f32, max_brightness: f32, color: Color, start_pos: f32) -> Racer
+	pub fn new(min_speed: f32, max_speed: f32, min_brightness: f32, max_brightness: f32, color: Color, start_pos: f32, direction: i8) -> Racer
 	{
 		Racer {
 			min_speed: min_speed,
 			max_speed: max_speed,
 			min_brightness: min_brightness,
 			max_brightness: max_brightness,
-			direction: 1,
+			direction: direction,
 			color: color,
 			pos: start_pos,
 			brightness: min_brightness,
@@ -142,13 +142,13 @@ impl Racer
 		let led1_color = color.scaled_copy((1.0 - fract_led) * brightness);
 		let led2_color = color.scaled_copy(fract_led * brightness);
 
-		if led1_idx >= 0 {
+		if led1_idx >= 0 && led1_idx < (config::NUM_LEDS_TOTAL as i32) {
 			let (strip, led) = Racer::_pos2ledstrip(led1_idx);
 
 			colorlists[strip as usize][led as usize].add(&led1_color);
 		}
 
-		if led2_idx < (config::NUM_LEDS_TOTAL as i32) {
+		if led2_idx >= 0 && led2_idx < (config::NUM_LEDS_TOTAL as i32) {
 			let (strip, led) = Racer::_pos2ledstrip(led2_idx);
 
 			colorlists[strip as usize][led as usize].add(&led2_color);
@@ -197,6 +197,12 @@ impl Animation for Racers
 		for _i in 0 .. NUM_RACERS_R {
 			let start_pos = rng.gen::<f32>() * (config::NUM_LEDS_TOTAL as f32);
 			let speed_scale = 1.0 + SPEED_SCALE_RANGE * (rng.gen::<f32>() - 0.5);
+			let mut dir = rng.gen::<i8>();
+			if dir > 0 {
+				dir = 1;
+			} else {
+				dir = -1;
+			}
 
 			self.racers_r.push(Racer::new(
 					RACER_MIN_SPEED_R * speed_scale,
@@ -204,12 +210,19 @@ impl Animation for Racers
 					RACER_MIN_BRIGHTNESS_R,
 					RACER_MAX_BRIGHTNESS_R,
 					Color{r: 1.0, g: 0.0, b: 0.0, w: 0.0},
-					start_pos));
+					start_pos,
+					dir));
 		}
 
 		for _i in 0 .. NUM_RACERS_G {
 			let start_pos = rng.gen::<f32>() * (config::NUM_LEDS_TOTAL as f32);
 			let speed_scale = 1.0 + SPEED_SCALE_RANGE * (rng.gen::<f32>() - 0.5);
+			let mut dir = rng.gen::<i8>();
+			if dir > 0 {
+				dir = 1;
+			} else {
+				dir = -1;
+			}
 
 			self.racers_g.push(Racer::new(
 					RACER_MIN_SPEED_G * speed_scale,
@@ -217,12 +230,19 @@ impl Animation for Racers
 					RACER_MIN_BRIGHTNESS_G,
 					RACER_MAX_BRIGHTNESS_G,
 					Color{r: 0.0, g: 1.0, b: 0.0, w: 0.0},
-					start_pos));
+					start_pos,
+					dir));
 		}
 
 		for _i in 0 .. NUM_RACERS_B {
 			let start_pos = rng.gen::<f32>() * (config::NUM_LEDS_TOTAL as f32);
 			let speed_scale = 1.0 + SPEED_SCALE_RANGE * (rng.gen::<f32>() - 0.5);
+			let mut dir = rng.gen::<i8>();
+			if dir > 0 {
+				dir = 1;
+			} else {
+				dir = -1;
+			}
 
 			self.racers_b.push(Racer::new(
 					RACER_MIN_SPEED_B * speed_scale,
@@ -230,7 +250,8 @@ impl Animation for Racers
 					RACER_MIN_BRIGHTNESS_B,
 					RACER_MAX_BRIGHTNESS_B,
 					Color{r: 0.0, g: 0.0, b: 1.0, w: 0.0},
-					start_pos));
+					start_pos,
+					dir));
 		}
 
 		Ok(())
