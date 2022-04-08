@@ -12,12 +12,13 @@ use rand::Rng;
 const COOLDOWN_FACTOR         : f32 = 0.99980;
 const RGB_EXPONENT            : f32 = 1.5;
 const W_EXPONENT              : f32 = 2.2;
-const W_SCALE                 : f32 = 0.5;
-const BRIGHTNESS_FILTER_ALPHA : f32 = 0.1;
+const W_SCALE                 : f32 = 0.3;
+const ENERGY_FILTER_ALPHA     : f32 = 0.20;
+const BRIGHTNESS_FILTER_ALPHA : f32 = 0.10;
 
-const NUM_RACERS_R        : usize = 10;
-const NUM_RACERS_G        : usize = 10;
-const NUM_RACERS_B        : usize = 10;
+const NUM_RACERS_R        : usize = 20 * config::NUM_LEDS_TOTAL / 300;
+const NUM_RACERS_G        : usize = 20 * config::NUM_LEDS_TOTAL / 300;
+const NUM_RACERS_B        : usize = 20 * config::NUM_LEDS_TOTAL / 300;
 
 const RACER_MIN_SPEED_R        : f32 =  0.5 / config::FPS_ANIMATION;
 const RACER_MAX_SPEED_R        : f32 = 30.0 / config::FPS_ANIMATION;
@@ -158,9 +159,10 @@ impl Racer
 
 pub struct Racers
 {
-	max_energy      : Color,
-	min_energy      : Color,
-	filtered_energy : Color,
+	max_energy          : Color,
+	min_energy          : Color,
+	filtered_energy     : Color,
+	filtered_brightness : Color,
 
 	racers_r : Vec<Racer>,
 	racers_g : Vec<Racer>,
@@ -181,6 +183,7 @@ impl Animation for Racers
 			max_energy: Color{r: 1.0, g: 1.0, b: 1.0, w: 1.0},
 			min_energy: Color{r: 0.0, g: 0.0, b: 0.0, w: 0.0},
 			filtered_energy: Color{r: 0.0, g: 0.0, b: 0.0, w: 0.0},
+			filtered_brightness: Color{r: 0.0, g: 0.0, b: 0.0, w: 0.0},
 			racers_r: Vec::with_capacity(NUM_RACERS_R),
 			racers_g: Vec::with_capacity(NUM_RACERS_G),
 			racers_b: Vec::with_capacity(NUM_RACERS_B),
@@ -272,7 +275,7 @@ impl Animation for Racers
 			let f = self.filtered_energy.ref_by_index_mut(i).unwrap();
 			let n = cur_energy.ref_by_index(i).unwrap();
 
-			*f = (1.0 - BRIGHTNESS_FILTER_ALPHA) * (*f) + BRIGHTNESS_FILTER_ALPHA * (*n);
+			*f = (1.0 - ENERGY_FILTER_ALPHA) * (*f) + ENERGY_FILTER_ALPHA * (*n);
 		}
 
 		// track the maximum energy with cooldown
@@ -297,22 +300,22 @@ impl Animation for Racers
 		}
 
 		// track the minimum energy with warmup
-		self.min_energy.r += (1.0 - COOLDOWN_FACTOR) * (self.max_energy.r - self.min_energy.r);
+		self.min_energy.r += (1.0 - COOLDOWN_FACTOR) * (self.max_energy.r * 0.5 - self.min_energy.r);
 		if self.filtered_energy.r < self.min_energy.r {
 			self.min_energy.r = self.filtered_energy.r;
 		}
 
-		self.min_energy.g += (1.0 - COOLDOWN_FACTOR) * (self.max_energy.g - self.min_energy.g);
+		self.min_energy.g += (1.0 - COOLDOWN_FACTOR) * (self.max_energy.g * 0.5 - self.min_energy.g);
 		if self.filtered_energy.g < self.min_energy.g {
 			self.min_energy.g = self.filtered_energy.g;
 		}
 
-		self.min_energy.b += (1.0 - COOLDOWN_FACTOR) * (self.max_energy.b - self.min_energy.b);
+		self.min_energy.b += (1.0 - COOLDOWN_FACTOR) * (self.max_energy.b * 0.5 - self.min_energy.b);
 		if self.filtered_energy.b < self.min_energy.b {
 			self.min_energy.b = self.filtered_energy.b;
 		}
 
-		self.min_energy.w += (1.0 - COOLDOWN_FACTOR) * (self.max_energy.w - self.min_energy.w);
+		self.min_energy.w += (1.0 - COOLDOWN_FACTOR) * (self.max_energy.w * 0.5 - self.min_energy.w);
 		if self.filtered_energy.w < self.min_energy.w {
 			self.min_energy.w = self.filtered_energy.w;
 		}
@@ -326,15 +329,23 @@ impl Animation for Racers
 		}
 
 		// rescaling and normalization of the energies
-		let scaled_energy = Color{
+		let brightness = Color{
 			r: ((self.filtered_energy.r - self.min_energy.r) / (self.max_energy.r - self.min_energy.r)).powf(RGB_EXPONENT),
 			g: ((self.filtered_energy.g - self.min_energy.g) / (self.max_energy.g - self.min_energy.g)).powf(RGB_EXPONENT),
 			b: ((self.filtered_energy.b - self.min_energy.b) / (self.max_energy.b - self.min_energy.b)).powf(RGB_EXPONENT),
 			w: ((self.filtered_energy.w - self.min_energy.w) / (self.max_energy.w - self.min_energy.w)).powf(W_EXPONENT) * W_SCALE,
 		};
 
+		// lowpass-filter brightness to reduce intensive fast flashing
+		for i in 0..4 {
+			let f = self.filtered_brightness.ref_by_index_mut(i).unwrap();
+			let n = brightness.ref_by_index(i).unwrap();
+
+			*f = (1.0 - BRIGHTNESS_FILTER_ALPHA) * (*f) + BRIGHTNESS_FILTER_ALPHA * (*n);
+		}
+
 		// update all racers
-		let f = &scaled_energy;
+		let f = &self.filtered_brightness;
 		self.racers_r.iter_mut().for_each(|x| x.update(f.r, f.w));
 		self.racers_g.iter_mut().for_each(|x| x.update(f.g, f.w));
 		self.racers_b.iter_mut().for_each(|x| x.update(f.b, f.w));
@@ -363,10 +374,10 @@ impl Animation for Racers
 		self.frame_count += 1;
 		if self.frame_count % 100 == 0 {
 			println!("---");
-			print!("Red   "); dbg_bar(self.min_energy.r, self.filtered_energy.r, self.max_energy.r); println!("{:11.2}", self.max_energy.r);
-			print!("Green "); dbg_bar(self.min_energy.g, self.filtered_energy.g, self.max_energy.g); println!("{:11.2}", self.max_energy.g);
-			print!("Blue  "); dbg_bar(self.min_energy.b, self.filtered_energy.b, self.max_energy.b); println!("{:11.2}", self.max_energy.b);
-			print!("White "); dbg_bar(self.min_energy.w, self.filtered_energy.w, self.max_energy.w); println!("{:11.2}", self.max_energy.w);
+			print!("Red   "); dbg_bar(self.min_energy.r, self.filtered_brightness.r, self.max_energy.r); println!("{:11.2}", self.max_energy.r);
+			print!("Green "); dbg_bar(self.min_energy.g, self.filtered_brightness.g, self.max_energy.g); println!("{:11.2}", self.max_energy.g);
+			print!("Blue  "); dbg_bar(self.min_energy.b, self.filtered_brightness.b, self.max_energy.b); println!("{:11.2}", self.max_energy.b);
+			print!("White "); dbg_bar(self.min_energy.w, self.filtered_brightness.w, self.max_energy.w); println!("{:11.2}", self.max_energy.w);
 		}
 
 		Ok(())
