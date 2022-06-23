@@ -25,7 +25,7 @@ fn main()
 	let mut stdin = std::io::stdin();
 
 	// set up the UDP protocol
-	let mut udpproto = match UdpProto::new(config::UDP_SERVER_ADDR) {
+	let mut udpproto = match UdpProto::new(config::UDP_SERVER_ADDR, config::NUM_LEDS_TOTAL) {
 		Ok(u) => u,
 		Err(e) => {
 			println!("Error during UDP client setup:\n{}", e);
@@ -135,7 +135,7 @@ fn main()
 				let led   = i % config::NUM_LEDS_PER_STRIP;
 
 				let r = udpproto.set_color(strip as u8,
-				                           led as u8,
+				                           led,
 				                           (colorlists[strip][led].r * 255.0) as u8,
 				                           (colorlists[strip][led].g * 255.0) as u8,
 				                           (colorlists[strip][led].b * 255.0) as u8,

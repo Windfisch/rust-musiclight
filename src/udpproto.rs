@@ -5,6 +5,8 @@ use std::net::SocketAddrV4;
 use std::net::Ipv4Addr;
 
 const MAX_PACKET_LEN: usize = 1470;
+const TIMEOUT_SEC: u8 = 3;
+const WLED_MODE_DRGBW: u8 = 3;
 
 struct Command
 {
@@ -17,103 +19,45 @@ struct Command
 pub struct UdpProto
 {
 	socket:        UdpSocket,
-	packet:        [u8; MAX_PACKET_LEN],
-	packet_offset: usize,
+	packet:        Vec<u8>,
 }
 
 impl UdpProto
 {
-	pub fn new(target_address: &str) -> std::io::Result<UdpProto>
+	pub fn new(target_address: &str, num_leds_total: usize) -> std::io::Result<UdpProto>
 	{
-		let u = UdpProto {
+		let mut u = UdpProto {
 			socket: UdpSocket::bind(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, 0))?,
-			packet: [0u8; MAX_PACKET_LEN],
-			packet_offset: 0,
+			packet: vec![0; 2 + 4*num_leds_total],
 		};
+
+		u.packet[0] = WLED_MODE_DRGBW;
+		u.packet[1] = TIMEOUT_SEC;
 
 		u.socket.connect(target_address)?;
 
 		Ok(u)
 	}
 
-	fn send_packet(&mut self) -> std::io::Result<()>
-	{
-		if self.packet_offset == 0 {
-			// nothing to do
-			return Ok( () );
-		}
-
-		self.socket.send(&self.packet[0..self.packet_offset])?;
-
-		self.packet_offset = 0;
-
-		Ok( () )
-	}
-
-	fn add_command(&mut self, cmd: u8, strip: u8, led: u8, data: &[u8; 4]) -> std::io::Result<()>
-	{
-		// put the command into the packet buffer
-		self.packet[self.packet_offset + 0] = cmd;
-		self.packet[self.packet_offset + 1] = strip;
-		self.packet[self.packet_offset + 2] = led;
-
-		for i in 0 .. data.len() {
-			self.packet[self.packet_offset + i + 3] = data[i];
-		}
-
-		self.packet_offset += 7;
-
-		if self.packet_offset >= MAX_PACKET_LEN-7 {
-			self.send_packet()?;
-		}
-
-		Ok( () )
-	}
-
-	pub fn set_color(&mut self, strip: u8, led: u8,
+	pub fn set_color(&mut self, _strip: u8, led: usize,
 		r: u8, g: u8, b: u8, w: u8) -> std::io::Result<()>
 	{
-		let data = [r,g,b,w];
-
-		self.add_command(0x00, strip, led, &data)?;
-
-		Ok( () )
-	}
-
-	pub fn fade_color(&mut self, strip: u8, led: u8,
-		r: u8, g: u8, b: u8, w: u8) -> std::io::Result<()>
-	{
-		let data = [r,g,b,w];
-
-		self.add_command(0x01, strip, led, &data)?;
-
-		Ok( () )
-	}
-
-	pub fn add_color(&mut self, strip: u8, led: u8,
-		r: u8, g: u8, b: u8, w: u8) -> std::io::Result<()>
-	{
-		let data = [r,g,b,w];
-
-		self.add_command(0x02, strip, led, &data)?;
-
-		Ok( () )
-	}
-
-	pub fn set_fadestep(&mut self, fadestep: u8) -> std::io::Result<()>
-	{
-		let data = [fadestep, 0, 0, 0];
-
-		self.add_command(0x03, 0, 0, &data)?;
-
-		Ok( () )
+		let offset = 2 + 4*led;
+		if offset > self.packet.len() {
+			Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "LED index out of range"))
+		}
+		else {
+			self.packet[offset + 0] = r;
+			self.packet[offset + 1] = g;
+			self.packet[offset + 2] = b;
+			self.packet[offset + 3] = w;
+			Ok( () )
+		}
 	}
 
 	pub fn commit(&mut self) -> std::io::Result<()>
 	{
-		// add the END_OF_UPDATE command
-		self.add_command(0xFE, 0, 0, &[0u8; 4])?;
-
-		self.send_packet()
+		self.socket.send(&self.packet)?;
+		Ok( () )
 	}
 }
