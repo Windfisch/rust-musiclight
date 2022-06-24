@@ -130,6 +130,7 @@ impl SignalProcessing
 		let start_bin = self.freq_to_idx(freq_start);
 		let end_bin = self.freq_to_idx(freq_end);
 
-		self.fft_absolute[start_bin ..= end_bin].iter().sum()
+		let sum: f32 = self.fft_absolute[start_bin ..= end_bin].iter().sum();
+		sum / (end_bin - start_bin + 1) as f32
 	}
 }
