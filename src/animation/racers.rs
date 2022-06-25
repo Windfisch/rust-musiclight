@@ -14,24 +14,24 @@ const RGB_EXPONENT            : f32 = 1.5;
 const W_EXPONENT              : f32 = 2.2;
 const W_SCALE                 : f32 = 0.3;
 const ENERGY_FILTER_ALPHA     : f32 = 0.20;
-const BRIGHTNESS_FILTER_ALPHA : f32 = 0.10;
+const BRIGHTNESS_FILTER_ALPHA : f32 = 0.002;
 
-const NUM_RACERS_R        : usize = 20 * config::NUM_LEDS_TOTAL / 300;
-const NUM_RACERS_G        : usize = 20 * config::NUM_LEDS_TOTAL / 300;
-const NUM_RACERS_B        : usize = 20 * config::NUM_LEDS_TOTAL / 300;
+const NUM_RACERS_R        : usize = 10 * config::NUM_LEDS_TOTAL / 300;
+const NUM_RACERS_G        : usize = 10 * config::NUM_LEDS_TOTAL / 300;
+const NUM_RACERS_B        : usize = 10 * config::NUM_LEDS_TOTAL / 300;
 
 const RACER_MIN_SPEED_R        : f32 =  0.5 / config::FPS_ANIMATION;
-const RACER_MAX_SPEED_R        : f32 = 30.0 / config::FPS_ANIMATION;
+const RACER_MAX_SPEED_R        : f32 = 80.0 / config::FPS_ANIMATION;
 const RACER_MIN_BRIGHTNESS_R   : f32 = 0.01;
 const RACER_MAX_BRIGHTNESS_R   : f32 = 1.00;
 
 const RACER_MIN_SPEED_G        : f32 =  0.5 / config::FPS_ANIMATION;
-const RACER_MAX_SPEED_G        : f32 = 30.0 / config::FPS_ANIMATION;
+const RACER_MAX_SPEED_G        : f32 = 80.0 / config::FPS_ANIMATION;
 const RACER_MIN_BRIGHTNESS_G   : f32 = 0.01;
 const RACER_MAX_BRIGHTNESS_G   : f32 = 1.00;
 
 const RACER_MIN_SPEED_B        : f32 =  0.5 / config::FPS_ANIMATION;
-const RACER_MAX_SPEED_B        : f32 = 30.0 / config::FPS_ANIMATION;
+const RACER_MAX_SPEED_B        : f32 = 80.0 / config::FPS_ANIMATION;
 const RACER_MIN_BRIGHTNESS_B   : f32 = 0.01;
 const RACER_MAX_BRIGHTNESS_B   : f32 = 1.00;
 
@@ -106,10 +106,10 @@ impl Racer
 		(strip, led)
 	}
 
-	pub fn update(&mut self, brightness: f32, flare_brightness: f32)
+	pub fn update(&mut self, speed: f32, brightness: f32, flare_brightness: f32)
 	{
 		// move along the strip
-		let cur_speed = self.min_speed + brightness * (self.max_speed - self.min_speed);
+		let cur_speed = self.min_speed + speed * (self.max_speed - self.min_speed);
 
 		self.pos += (self.direction as f32) * cur_speed;
 
@@ -346,9 +346,10 @@ impl Animation for Racers
 
 		// update all racers
 		let f = &self.filtered_brightness;
-		self.racers_r.iter_mut().for_each(|x| x.update(f.r, f.w));
-		self.racers_g.iter_mut().for_each(|x| x.update(f.g, f.w));
-		self.racers_b.iter_mut().for_each(|x| x.update(f.b, f.w));
+		let speed = &brightness;
+		self.racers_r.iter_mut().for_each(|x| x.update(speed.r, f.r, f.w));
+		self.racers_g.iter_mut().for_each(|x| x.update(speed.g, f.g, f.w));
+		self.racers_b.iter_mut().for_each(|x| x.update(speed.b, f.b, f.w));
 
 		// render all racers
 		for racer in self.racers_r.iter() {
