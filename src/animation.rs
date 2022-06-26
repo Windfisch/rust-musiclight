@@ -14,6 +14,7 @@ type Result<T> = std::result::Result<T, AnimationError>;
 pub mod particles;
 pub mod sparkles;
 pub mod racers;
+pub mod spectrum;
 
 /////////// Error Type and Implementation ////////////
 
